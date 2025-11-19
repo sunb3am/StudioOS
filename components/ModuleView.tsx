@@ -1,0 +1,236 @@
+
+import React, { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { ModuleDefinition, ModuleData, ModuleStatus, ModuleVersion } from '../types';
+import { Play, RefreshCw, ChevronRight, AlertTriangle, ExternalLink, Globe, Sparkles, Square, History, Clock, AlertOctagon } from 'lucide-react';
+
+interface ModuleViewProps {
+  definition: ModuleDefinition;
+  data: ModuleData;
+  projectTheme: string;
+  onRun: (manualInput?: string) => void;
+  onStop: () => void;
+  canRun: boolean;
+}
+
+export const ModuleView: React.FC<ModuleViewProps> = ({ definition, data, projectTheme, onRun, onStop, canRun }) => {
+  const [manualInput, setManualInput] = React.useState(definition.isManualInput ? projectTheme : '');
+  const [selectedVersionIndex, setSelectedVersionIndex] = useState<number>(-1); // -1 means current
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Current display data (either latest or selected version)
+  const displayOutput = selectedVersionIndex === -1 ? data.output : data.versions[selectedVersionIndex]?.output;
+  const displaySources = selectedVersionIndex === -1 ? data.sources : data.versions[selectedVersionIndex]?.sources;
+
+  useEffect(() => {
+    if (definition.isManualInput) {
+      setManualInput(projectTheme);
+    }
+  }, [definition, projectTheme]);
+
+  // Auto-scroll to bottom when output updates (only if showing latest)
+  useEffect(() => {
+    if (data.status === ModuleStatus.RUNNING && selectedVersionIndex === -1 && bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [data.output, data.status, selectedVersionIndex]);
+
+  const handleRun = () => {
+    setSelectedVersionIndex(-1); // Reset to view latest when running
+    onRun(definition.isManualInput ? manualInput : undefined);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      {/* Header */}
+      <div className="px-8 py-6 border-b border-gray-100 bg-white shrink-0">
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-2xl font-bold text-gray-900">{definition.title}</h2>
+              {definition.useThinking && (
+                <span className="bg-purple-50 text-purple-700 text-xs px-2 py-1 rounded-full border border-purple-100 flex items-center">
+                  <Sparkles className="w-3 h-3 mr-1" /> Thinking
+                </span>
+              )}
+              {definition.useGrounding && (
+                 <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full border border-blue-100 flex items-center">
+                 <Globe className="w-3 h-3 mr-1" /> Live Search
+               </span>
+              )}
+            </div>
+            <p className="mt-2 text-gray-500">{definition.description}</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            {/* Version Selector */}
+            {data.versions.length > 0 && (
+              <div className="relative group">
+                <button className="inline-flex items-center px-3 py-2 border border-gray-200 text-sm font-medium rounded-md text-gray-600 bg-white hover:bg-gray-50">
+                  <History className="w-4 h-4 mr-2 text-gray-400" />
+                  {selectedVersionIndex === -1 ? 'Latest Version' : `Version ${data.versions.length - selectedVersionIndex}`}
+                  <ChevronRight className="w-3 h-3 ml-2 transform group-hover:rotate-90 transition-transform" />
+                </button>
+                <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                  <div className="py-1">
+                    <button 
+                      onClick={() => setSelectedVersionIndex(-1)}
+                      className={`block w-full text-left px-4 py-2 text-sm ${selectedVersionIndex === -1 ? 'bg-studio-50 text-studio-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      Latest Result
+                    </button>
+                    {data.versions.map((v, idx) => (
+                      <button 
+                        key={idx}
+                        onClick={() => setSelectedVersionIndex(idx)}
+                        className={`block w-full text-left px-4 py-2 text-sm ${selectedVersionIndex === idx ? 'bg-studio-50 text-studio-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        <div className="flex items-center">
+                          <Clock className="w-3 h-3 mr-2 text-gray-400" />
+                          {new Date(v.timestamp).toLocaleTimeString()} 
+                          <span className="ml-1 text-gray-400 text-xs">({new Date(v.timestamp).toLocaleDateString()})</span>
+                        </div>
+                      </button>
+                    )).reverse()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            {data.status === ModuleStatus.RUNNING ? (
+              <button
+                onClick={onStop}
+                className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none"
+              >
+                <Square className="w-3 h-3 fill-current mr-2" />
+                Stop
+              </button>
+            ) : (
+              (data.status === ModuleStatus.COMPLETED || data.status === ModuleStatus.ERROR || data.status === ModuleStatus.INTERRUPTED) && (
+                <button
+                  onClick={handleRun}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-studio-500"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Re-run
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Input Area (for manual modules) */}
+      {definition.isManualInput && data.status !== ModuleStatus.RUNNING && data.status !== ModuleStatus.COMPLETED && (
+        <div className="px-8 py-6 bg-studio-50 border-b border-studio-100 shrink-0">
+          <label className="block text-sm font-medium text-studio-900 mb-2">
+            Focus Theme / Problem Area
+          </label>
+          <div className="flex space-x-4">
+            <input
+              type="text"
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              placeholder="e.g. AI-driven cognitive tutors for frontline healthcare workers"
+              className="flex-1 shadow-sm focus:ring-studio-500 focus:border-studio-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+            />
+            <button
+              onClick={handleRun}
+              disabled={!manualInput.trim()}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-studio-600 hover:bg-studio-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Start Research <ChevronRight className="ml-2 w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Action Area (for automated modules) */}
+      {!definition.isManualInput && data.status === ModuleStatus.READY && (
+        <div className="px-8 py-6 bg-gray-50 border-b border-gray-200 shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-gray-600">
+              <AlertTriangle className="w-5 h-5 text-amber-500 mr-2" />
+              <span className="text-sm">This module requires input from previous steps. Ready to proceed.</span>
+            </div>
+            <button
+              onClick={handleRun}
+              disabled={!canRun}
+              className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-studio-600 hover:bg-studio-700 focus:outline-none disabled:bg-gray-300"
+            >
+              <Play className="w-4 h-4 mr-2" />
+              Generate Analysis
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Interrupted / Error State */}
+      {data.status === ModuleStatus.INTERRUPTED && (
+         <div className="px-8 py-4 bg-amber-50 border-b border-amber-100 shrink-0 flex items-center text-amber-800">
+            <AlertOctagon className="w-5 h-5 mr-2" />
+            <span className="text-sm font-medium">Analysis was interrupted (power loss or reload). Use "Re-run" to restart.</span>
+         </div>
+      )}
+
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto p-8 bg-white relative">
+        {data.status === ModuleStatus.RUNNING && !displayOutput && (
+          <div className="flex flex-col items-center justify-center h-64 text-gray-500 animate-pulse">
+            <div className="w-12 h-12 border-4 border-studio-200 border-t-studio-600 rounded-full animate-spin mb-4"></div>
+            <p>Orchestrating research agents...</p>
+            {definition.useGrounding && <p className="text-xs mt-2 text-blue-500">Browsing live web sources & validating...</p>}
+            {definition.useThinking && <p className="text-xs mt-1 text-purple-500">Reasoning deeply about market dynamics...</p>}
+          </div>
+        )}
+
+        {displayOutput ? (
+          <>
+             {selectedVersionIndex !== -1 && (
+                <div className="mb-6 p-3 bg-gray-100 rounded text-xs text-gray-500 text-center">
+                   Viewing historical version from {new Date(data.versions[selectedVersionIndex].timestamp).toLocaleString()}
+                </div>
+             )}
+            <div className="prose prose-studio max-w-none mb-12">
+               <ReactMarkdown>{displayOutput}</ReactMarkdown>
+            </div>
+
+            {/* Sources/Citations Footer */}
+            {displaySources && displaySources.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-gray-100">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center">
+                  <Globe className="w-3 h-3 mr-1" /> Verified Sources
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {displaySources.map((source, idx) => (
+                    <a 
+                      key={idx} 
+                      href={source.uri} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center p-2 rounded-md hover:bg-gray-50 border border-transparent hover:border-gray-200 group transition-all"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-700 truncate group-hover:text-studio-700">
+                          {source.title || new URL(source.uri).hostname}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate">{source.uri}</p>
+                      </div>
+                      <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-studio-500 ml-2" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        ) : data.status === ModuleStatus.ERROR ? (
+           <div className="text-red-500 p-4 bg-red-50 rounded-lg">
+              Error generating content. Please try re-running the module.
+           </div>
+        ) : null}
+        
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  );
+};
