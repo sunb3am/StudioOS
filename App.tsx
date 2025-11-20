@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { ModuleView } from './components/ModuleView';
+import { WelcomeModal } from './components/WelcomeModal';
 import { MODULES, PROMPTS, CORE_SYSTEM_INSTRUCTION, APP_NAME } from './constants';
-import { ProjectState, ModuleStatus, ModuleData, GlobalState } from './types';
-import { generateGeminiResponse } from './services/geminiService';
-import { Settings, Key, ToggleLeft, ToggleRight, Download } from 'lucide-react';
+import { ProjectState, ModuleStatus, ModuleData, GlobalState, ChatMessage } from './types';
+import { generateGeminiResponse, generateChatResponse } from './services/geminiService';
+import { Settings, Key, ToggleLeft, ToggleRight, Download, Info } from 'lucide-react';
 
 // Initial factory for a fresh project
 const createNewProject = (name: string = 'New Venture Concept'): ProjectState => {
@@ -15,6 +16,7 @@ const createNewProject = (name: string = 'New Venture Concept'): ProjectState =>
       status: m.id === 'mod-1' ? ModuleStatus.READY : ModuleStatus.LOCKED,
       output: null,
       sources: [],
+      chatHistory: [], // Initialize chat history
       feedback: null,
       timestamp: 0,
       versions: []
@@ -27,12 +29,11 @@ const createNewProject = (name: string = 'New Venture Concept'): ProjectState =>
     theme: '',
     modules: initialModules,
     currentModuleId: 'mod-1',
-    autoRun: false,
+    autoRun: true, // Default to TRUE as requested
     lastModified: Date.now()
   };
 };
 
-// Ensure no modules are stuck in RUNNING state on load
 const sanitizeState = (state: GlobalState): GlobalState => {
   const newState = { ...state };
   Object.keys(newState.projects).forEach(pid => {
@@ -41,7 +42,12 @@ const sanitizeState = (state: GlobalState): GlobalState => {
     Object.keys(project.modules).forEach(mid => {
       const mod = project.modules[mid];
       if (mod.status === ModuleStatus.RUNNING) {
-        mod.status = ModuleStatus.INTERRUPTED; // Set to interrupted so user knows what happened
+        mod.status = ModuleStatus.INTERRUPTED; 
+        changed = true;
+      }
+      // Ensure chatHistory exists for old saves
+      if (!mod.chatHistory) {
+        mod.chatHistory = [];
         changed = true;
       }
     });
@@ -54,8 +60,8 @@ const sanitizeState = (state: GlobalState): GlobalState => {
 
 const App: React.FC = () => {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   
-  // Load initial state
   const loadState = (): GlobalState => {
     const saved = localStorage.getItem('studio_os_global_v1');
     if (saved) {
@@ -67,12 +73,12 @@ const App: React.FC = () => {
       }
     }
     
-    // Fallback or first load
     const firstProject = createNewProject();
     return {
       projects: { [firstProject.id]: firstProject },
       activeProjectId: firstProject.id,
-      apiKey: null
+      apiKey: null,
+      hasSeenWelcome: false
     };
   };
 
@@ -84,7 +90,7 @@ const App: React.FC = () => {
     localStorage.setItem('studio_os_global_v1', JSON.stringify(globalState));
   }, [globalState]);
 
-  // API Key Check
+  // API Key & Welcome Modal Check
   useEffect(() => {
     const envKey = process.env.API_KEY;
     if (envKey && !globalState.apiKey) {
@@ -97,10 +103,19 @@ const App: React.FC = () => {
         setShowApiKeyModal(true);
       }
     }
+
+    if (!globalState.hasSeenWelcome) {
+      setShowWelcome(true);
+    }
   }, []);
 
+  // Close welcome modal
+  const closeWelcome = () => {
+    setShowWelcome(false);
+    setGlobalState(prev => ({ ...prev, hasSeenWelcome: true }));
+  };
+
   // --- Continuous Mode Waterfall Logic ---
-  // Triggers when a module completes, checking if autoRun is enabled and the next module is ready.
   useEffect(() => {
     const activeProject = globalState.projects[globalState.activeProjectId];
     if (!activeProject || !activeProject.autoRun) return;
@@ -110,30 +125,24 @@ const App: React.FC = () => {
 
     const currentModuleData = activeProject.modules[activeProject.currentModuleId];
 
-    // Only proceed if current is finished
     if (currentModuleData.status === ModuleStatus.COMPLETED) {
        const currentIndex = MODULES.findIndex(m => m.id === activeProject.currentModuleId);
        const nextModule = MODULES[currentIndex + 1];
        
-       // Check if next module exists and isn't already running or completed (to prevent loops)
        if (nextModule) {
          const nextModuleData = activeProject.modules[nextModule.id];
          if (nextModuleData.status === ModuleStatus.READY) {
-           // Move selection to next module and run it
            setTimeout(() => {
              updateProjectState(activeProject.id, (p) => ({ ...p, currentModuleId: nextModule.id }));
              runModule(activeProject.id, nextModule.id);
-           }, 1500); // Slight delay for visual clarity
+           }, 1500); 
          }
        } else {
-         // End of pipeline, turn off autoRun
          updateProjectState(activeProject.id, (p) => ({ ...p, autoRun: false }));
        }
     }
   }, [globalState.projects, globalState.activeProjectId]);
 
-
-  // Helper to update a specific project's state
   const updateProjectState = (projectId: string, updater: (p: ProjectState) => ProjectState) => {
     setGlobalState(prev => ({
       ...prev,
@@ -155,12 +164,11 @@ const App: React.FC = () => {
 
   const handleDeleteProject = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (Object.keys(globalState.projects).length <= 1) return; // Prevent deleting last project
+    if (Object.keys(globalState.projects).length <= 1) return;
     
     setGlobalState(prev => {
       const newProjects = { ...prev.projects };
       delete newProjects[id];
-      // If we deleted the active one, switch to another
       const newActiveId = prev.activeProjectId === id ? Object.keys(newProjects)[0] : prev.activeProjectId;
       return {
         ...prev,
@@ -188,21 +196,6 @@ const App: React.FC = () => {
     setShowApiKeyModal(false);
   };
 
-  const buildContextHistory = (project: ProjectState, currentModuleIndex: number): string => {
-    let history = `PROJECT THEME: ${project.theme}\n\n`;
-    
-    for (let i = 0; i < currentModuleIndex; i++) {
-      const modDef = MODULES[i];
-      const modData = project.modules[modDef.id];
-      if (modData.output) {
-        history += `--- START OUTPUT FROM MODULE ${modDef.id} (${modDef.title}) ---\n`;
-        history += modData.output;
-        history += `\n--- END OUTPUT FROM MODULE ${modDef.id} ---\n\n`;
-      }
-    }
-    return history;
-  };
-
   const handleStopModule = (projectId: string, moduleId: string) => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -213,16 +206,133 @@ const App: React.FC = () => {
       const mod = p.modules[moduleId];
       return {
         ...p,
-        autoRun: false, // Disable auto run on stop
+        autoRun: false, 
         modules: {
           ...p.modules,
           [moduleId]: {
             ...mod,
-            status: ModuleStatus.INTERRUPTED // Or ready? Interrupted is clearer
+            status: ModuleStatus.INTERRUPTED 
           }
         }
       }
     });
+  };
+
+  // Helper to convert File to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          // Remove the "data:*/*;base64," part
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        } else {
+          reject(new Error("Failed to convert file"));
+        }
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleChat = async (message: string, files: File[] = []) => {
+    const projectId = globalState.activeProjectId;
+    const activeProject = globalState.projects[projectId];
+    const moduleId = activeProject.currentModuleId;
+    
+    if (!globalState.apiKey) {
+      setShowApiKeyModal(true);
+      return;
+    }
+
+    // Convert files
+    const attachments = await Promise.all(files.map(async f => ({
+      mimeType: f.type,
+      data: await fileToBase64(f)
+    })));
+
+    // Optimistic Update
+    const userMsg: ChatMessage = {
+      role: 'user',
+      text: message,
+      timestamp: Date.now(),
+      attachments
+    };
+
+    updateProjectState(projectId, (p) => ({
+      ...p,
+      modules: {
+        ...p.modules,
+        [moduleId]: {
+          ...p.modules[moduleId],
+          chatHistory: [...(p.modules[moduleId].chatHistory || []), userMsg]
+        }
+      }
+    }));
+
+    try {
+      // Construct context for chat
+      const moduleIndex = MODULES.findIndex(m => m.id === moduleId);
+      let history = `PROJECT THEME: ${activeProject.theme}\n\n`;
+      for (let i = 0; i < moduleIndex; i++) {
+        const modDef = MODULES[i];
+        const modData = activeProject.modules[modDef.id];
+        if (modData.output) {
+          history += `--- START OUTPUT FROM MODULE ${modDef.id} (${modDef.title}) ---\n`;
+          history += modData.output;
+          history += `\n--- END OUTPUT FROM MODULE ${modDef.id} ---\n\n`;
+        }
+      }
+
+      const modData = activeProject.modules[moduleId];
+      
+      const responseText = await generateChatResponse(globalState.apiKey, {
+        systemInstruction: CORE_SYSTEM_INSTRUCTION,
+        prompt: message,
+        history: history,
+        currentOutput: modData.output || "No output available yet.",
+        chatHistory: modData.chatHistory || [],
+        newAttachments: attachments,
+        useThinking: false,
+        useGrounding: false // Chat doesn't need to re-search usually, but could enable if needed
+      });
+
+      // Append AI Response
+      const botMsg: ChatMessage = {
+        role: 'model',
+        text: responseText,
+        timestamp: Date.now()
+      };
+
+      updateProjectState(projectId, (p) => ({
+        ...p,
+        modules: {
+          ...p.modules,
+          [moduleId]: {
+            ...p.modules[moduleId],
+            chatHistory: [...p.modules[moduleId].chatHistory, botMsg]
+          }
+        }
+      }));
+
+    } catch (error) {
+       const errorMsg: ChatMessage = {
+        role: 'model',
+        text: `Error: ${(error as Error).message}`,
+        timestamp: Date.now()
+      };
+      updateProjectState(projectId, (p) => ({
+        ...p,
+        modules: {
+          ...p.modules,
+          [moduleId]: {
+            ...p.modules[moduleId],
+            chatHistory: [...p.modules[moduleId].chatHistory, errorMsg]
+          }
+        }
+      }));
+    }
   };
 
   const runModule = async (projectId: string, moduleId: string, manualInput?: string) => {
@@ -231,7 +341,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Abort any previous running request if forced
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -241,15 +350,16 @@ const App: React.FC = () => {
     const moduleIndex = MODULES.findIndex(m => m.id === moduleId);
     const moduleDef = MODULES[moduleIndex];
 
-    // Archive previous version if exists
     updateProjectState(projectId, (prevProj) => {
       const currentMod = prevProj.modules[moduleId];
       const newVersions = [...currentMod.versions];
       
+      // Archive output AND chat history
       if (currentMod.status === ModuleStatus.COMPLETED && currentMod.output) {
         newVersions.push({
           output: currentMod.output,
           sources: currentMod.sources,
+          chatHistory: currentMod.chatHistory || [],
           timestamp: currentMod.timestamp
         });
       }
@@ -262,7 +372,8 @@ const App: React.FC = () => {
       updatedProj.modules[moduleId] = {
         ...currentMod,
         status: ModuleStatus.RUNNING,
-        output: null, // Clear visible output while running
+        output: null, 
+        chatHistory: [], // Reset chat for new run
         versions: newVersions
       };
 
@@ -272,12 +383,8 @@ const App: React.FC = () => {
     try {
       const promptTemplate = PROMPTS[moduleDef.systemPromptKey] || `Analyze the previous context and generate the output for ${moduleDef.title}.`;
       const fullSystemInstruction = `${CORE_SYSTEM_INSTRUCTION}\n\nSPECIFIC MODULE INSTRUCTION:\n${promptTemplate}`;
-      // Re-fetch project state to ensure we have latest manualInput/theme
-      const currentProjectState = globalState.projects[projectId]; // Note: this might be slightly stale inside async closure if not careful, but we rely on passed args or pre-update
-      // Actually we need the updated theme if manualInput was just set.
       const effectiveTheme = manualInput || project.theme;
       
-      // Build context based on effective state
       let history = `PROJECT THEME: ${effectiveTheme}\n\n`;
       for (let i = 0; i < moduleIndex; i++) {
         const modDef = MODULES[i];
@@ -301,10 +408,8 @@ const App: React.FC = () => {
         useGrounding: !!moduleDef.useGrounding
       });
 
-      // Check if aborted
       if (abortControllerRef.current?.signal.aborted) return;
 
-      // Success Update
       updateProjectState(projectId, (prev) => {
         const next = { ...prev };
         next.modules[moduleId] = {
@@ -315,7 +420,6 @@ const App: React.FC = () => {
           timestamp: Date.now()
         };
 
-        // Unlock next module
         const nextModuleDef = MODULES[moduleIndex + 1];
         if (nextModuleDef) {
           next.modules[nextModuleDef.id].status = ModuleStatus.READY;
@@ -347,31 +451,147 @@ const App: React.FC = () => {
     const completedModules = MODULES.filter(m => project.modules[m.id].status === ModuleStatus.COMPLETED);
     
     let htmlContent = `
-      <html>
+      <!DOCTYPE html>
+      <html lang="en">
       <head>
+        <meta charset="UTF-8">
         <title>${project.name || APP_NAME} - Report</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
         <style>
-          body { font-family: 'Inter', sans-serif; color: #333; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 40px; }
-          h1 { font-size: 24px; color: #111; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-          h2 { font-size: 20px; color: #333; margin-top: 30px; }
-          h3 { font-size: 18px; color: #555; }
-          .module-section { margin-bottom: 50px; page-break-after: always; }
-          .meta { color: #888; font-size: 12px; margin-bottom: 30px; }
-          .source-link { color: #2563eb; text-decoration: none; font-size: 11px; display: block; }
-          blockquote { border-left: 3px solid #ddd; padding-left: 15px; color: #666; }
-          pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+          @media print {
+            @page { margin: 2cm; }
+            body { -webkit-print-color-adjust: exact; }
+          }
+          body { 
+            font-family: 'Inter', sans-serif; 
+            color: #1f2937; 
+            line-height: 1.7; 
+            background: #fff;
+            margin: 0;
+            padding: 0;
+          }
+          .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+          }
+          
+          /* Cover Page */
+          .cover-page {
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 50px;
+            page-break-after: always;
+          }
+          .brand {
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: #059669; /* Studio Green */
+            text-transform: uppercase;
+            font-size: 14px;
+            margin-bottom: 20px;
+          }
+          .report-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 48px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 10px;
+            line-height: 1.2;
+          }
+          .report-theme {
+            font-size: 20px;
+            color: #6b7280;
+            font-weight: 300;
+            margin-bottom: 40px;
+          }
+          .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+            text-align: left;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 20px;
+          }
+          .meta-label { font-size: 11px; text-transform: uppercase; color: #9ca3af; letter-spacing: 0.05em; }
+          .meta-value { font-size: 14px; font-weight: 500; color: #374151; }
+
+          /* Content */
+          h1 { font-size: 24px; color: #111; border-bottom: 2px solid #059669; padding-bottom: 10px; margin-top: 0; }
+          h2 { font-size: 20px; color: #374151; margin-top: 30px; font-weight: 600; }
+          h3 { font-size: 18px; color: #4b5563; font-weight: 600; }
+          p { margin-bottom: 1.2em; }
+          ul, ol { margin-bottom: 1.2em; padding-left: 1.5em; }
+          li { margin-bottom: 0.5em; }
+          blockquote { border-left: 4px solid #059669; padding-left: 15px; color: #4b5563; font-style: italic; margin: 20px 0; background: #f9fafb; padding: 15px; }
+          
+          .module-section { margin-bottom: 60px; page-break-after: always; }
+          .source-box { background: #f3f4f6; border-radius: 8px; padding: 15px; margin-top: 30px; font-size: 12px; }
+          .source-link { color: #2563eb; text-decoration: none; display: block; margin-bottom: 4px; }
+          
+          /* Chat Section in PDF */
+          .chat-transcript {
+            margin-top: 30px;
+            border-top: 1px dashed #d1d5db;
+            padding-top: 20px;
+          }
+          .chat-header { font-size: 14px; font-weight: 700; text-transform: uppercase; color: #6b7280; margin-bottom: 15px; }
+          .chat-msg { margin-bottom: 15px; font-size: 13px; }
+          .chat-role { font-weight: 700; font-size: 11px; text-transform: uppercase; margin-bottom: 2px; }
+          .role-user { color: #059669; }
+          .role-model { color: #4b5563; }
+          .chat-text { background: #f9fafb; padding: 8px 12px; border-radius: 6px; display: inline-block; max-width: 100%; }
+
+          /* Footer */
+          .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 40px;
+            font-size: 10px;
+            color: #9ca3af;
+            background: white;
+          }
         </style>
       </head>
       <body>
-        <h1>${project.name || "Venture Research Report"}</h1>
-        <div class="meta">Generated by StudioOS v1 on ${new Date().toLocaleDateString()}</div>
-        <div class="meta">Theme: ${project.theme}</div>
+        <div class="container">
+          <div class="cover-page">
+            <div class="brand">StudioOS v1</div>
+            <div class="report-title">${project.name || "Venture Research Report"}</div>
+            <div class="report-theme">${project.theme}</div>
+            
+            <div class="meta-grid">
+              <div>
+                <div class="meta-label">Date Generated</div>
+                <div class="meta-value">${new Date().toLocaleDateString()}</div>
+              </div>
+              <div>
+                <div class="meta-label">Modules Completed</div>
+                <div class="meta-value">${completedModules.length} / ${MODULES.length}</div>
+              </div>
+            </div>
+          </div>
+
     `;
 
     completedModules.forEach(mod => {
       const data = project.modules[mod.id];
       let formattedOutput = data.output || '';
       
+      // Basic Markdown to HTML conversion for PDF
       formattedOutput = formattedOutput
         .replace(/^# (.*$)/gim, '<h3>$1</h3>')
         .replace(/^## (.*$)/gim, '<h4>$1</h4>')
@@ -381,12 +601,25 @@ const App: React.FC = () => {
 
       htmlContent += `
         <div class="module-section">
-          <h2>${mod.title}</h2>
-          <div>${formattedOutput}</div>
+          <h1>${mod.title}</h1>
+          <div class="content">${formattedOutput}</div>
+          
           ${data.sources && data.sources.length > 0 ? `
-            <div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee;">
-              <strong>Sources:</strong>
-              ${data.sources.map(s => `<a href="${s.uri}" class="source-link" target="_blank">${s.title}</a>`).join('')}
+            <div class="source-box">
+              <strong>Verified Sources:</strong>
+              ${data.sources.map(s => `<a href="${s.uri}" class="source-link" target="_blank">${s.title || s.uri}</a>`).join('')}
+            </div>
+          ` : ''}
+
+          ${data.chatHistory && data.chatHistory.length > 0 ? `
+            <div class="chat-transcript">
+              <div class="chat-header">Analyst Discussion Log</div>
+              ${data.chatHistory.map(msg => `
+                <div class="chat-msg">
+                  <div class="chat-role ${msg.role === 'user' ? 'role-user' : 'role-model'}">${msg.role === 'user' ? 'Analyst' : 'StudioOS Agent'}</div>
+                  <div class="chat-text">${msg.text}</div>
+                </div>
+              `).join('')}
             </div>
           ` : ''}
         </div>
@@ -394,6 +627,11 @@ const App: React.FC = () => {
     });
 
     htmlContent += `
+        </div>
+        <div class="footer">
+          <span>Generated by StudioOS v1</span>
+          <span>${new Date().toLocaleDateString()}</span>
+        </div>
         <script>
           window.onload = function() { window.print(); }
         </script>
@@ -439,6 +677,13 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowWelcome(true)}
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              title="Product Info / Welcome"
+            >
+              <Info className="w-5 h-5" />
+            </button>
              <button 
               onClick={handlePrintReport}
               className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
@@ -464,10 +709,13 @@ const App: React.FC = () => {
             projectTheme={activeProject.theme}
             onRun={(input) => runModule(activeProject.id, currentModuleDef.id, input)}
             onStop={() => handleStopModule(activeProject.id, currentModuleDef.id)}
+            onChat={handleChat}
             canRun={canRunCurrent}
           />
         </div>
       </main>
+
+      {showWelcome && <WelcomeModal onClose={closeWelcome} />}
 
       {/* API Key Modal */}
       {showApiKeyModal && (

@@ -5,18 +5,18 @@ export enum ModuleStatus {
   RUNNING = 'RUNNING',
   COMPLETED = 'COMPLETED',
   ERROR = 'ERROR',
-  INTERRUPTED = 'INTERRUPTED' // New status for crash recovery
+  INTERRUPTED = 'INTERRUPTED'
 }
 
 export interface ModuleDefinition {
   id: string;
   title: string;
   description: string;
-  inputs: string[]; // Keys of data needed from previous steps
-  systemPromptKey: string; // Key to look up specific instructions
-  isManualInput?: boolean; // If true, requires user input before running
-  useThinking?: boolean; // Enable Gemini Thinking features
-  useGrounding?: boolean; // Enable Google Search
+  inputs: string[]; 
+  systemPromptKey: string; 
+  isManualInput?: boolean; 
+  useThinking?: boolean; 
+  useGrounding?: boolean; 
 }
 
 export interface GroundingSource {
@@ -24,25 +24,37 @@ export interface GroundingSource {
   title: string;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+  timestamp: number;
+  attachments?: {
+    mimeType: string;
+    data: string; // base64
+  }[];
+}
+
 export interface ModuleVersion {
   timestamp: number;
   output: string;
   sources: GroundingSource[];
+  chatHistory: ChatMessage[];
 }
 
 export interface ModuleData {
   status: ModuleStatus;
-  output: string | null; // The current Markdown output
-  sources: GroundingSource[]; // Sources for the current output
-  feedback: string | null; // User notes/override
+  output: string | null; 
+  sources: GroundingSource[]; 
+  chatHistory: ChatMessage[]; // New: Conversational history for this module
+  feedback: string | null; 
   timestamp: number;
-  versions: ModuleVersion[]; // History of previous runs
+  versions: ModuleVersion[]; 
 }
 
 export interface ProjectState {
   id: string;
   name: string;
-  theme: string; // The initial user input
+  theme: string; 
   modules: Record<string, ModuleData>;
   currentModuleId: string;
   autoRun: boolean;
@@ -53,12 +65,19 @@ export interface GlobalState {
   projects: Record<string, ProjectState>;
   activeProjectId: string;
   apiKey: string | null;
+  hasSeenWelcome: boolean; // New: Onboarding tracking
 }
 
 export interface GeneratePayload {
   systemInstruction: string;
   prompt: string;
-  history: string; // Condensed context of previous modules
+  history: string; 
   useThinking: boolean;
   useGrounding: boolean;
+}
+
+export interface ChatPayload extends GeneratePayload {
+  currentOutput: string; // The module's main output to discuss
+  chatHistory: ChatMessage[];
+  newAttachments?: { mimeType: string; data: string }[];
 }

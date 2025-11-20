@@ -1,6 +1,8 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { GeneratePayload, GroundingSource } from '../types';
+import { GeneratePayload, GroundingSource, ChatPayload, ChatMessage } from '../types';
+
+const MODEL_ID = 'gemini-3-pro-preview';
 
 export const generateGeminiResponse = async (
   apiKey: string,
@@ -9,9 +11,6 @@ export const generateGeminiResponse = async (
   if (!apiKey) throw new Error("API Key is missing");
 
   const ai = new GoogleGenAI({ apiKey });
-
-  // Using Gemini 3 Pro for maximum reasoning capability as requested
-  const modelId = 'gemini-3-pro-preview'; 
 
   const tools: any[] = [];
   if (payload.useGrounding) {
@@ -27,14 +26,13 @@ export const generateGeminiResponse = async (
     config.tools = tools;
   }
 
-  // Enable Thinking for complex reasoning if requested
   if (payload.useThinking) {
-    config.thinkingConfig = { thinkingBudget: 8192 }; // High budget for deep analysis
+    config.thinkingConfig = { thinkingBudget: 8192 }; 
   }
 
   try {
     const response = await ai.models.generateContent({
-      model: modelId,
+      model: MODEL_ID,
       contents: [
         {
           role: 'user',
@@ -49,10 +47,7 @@ export const generateGeminiResponse = async (
 
     const text = response.text || "No response generated.";
     
-    // Extract grounding (search) metadata
     const sources: GroundingSource[] = [];
-    
-    // Check for grounding chunks in candidates
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {
       chunks.forEach((chunk: any) => {
@@ -69,5 +64,65 @@ export const generateGeminiResponse = async (
   } catch (error) {
     console.error("Gemini API Error:", error);
     throw new Error(`Gemini API Error: ${(error as Error).message}`);
+  }
+};
+
+export const generateChatResponse = async (
+  apiKey: string,
+  payload: ChatPayload
+): Promise<string> => {
+  if (!apiKey) throw new Error("API Key is missing");
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  // We include the module context, the main output, and the chat history
+  const contents = [
+    {
+      role: 'user',
+      parts: [{ text: `BACKGROUND CONTEXT:\n${payload.history}\n\nCURRENT MODULE OUTPUT:\n${payload.currentOutput}` }]
+    },
+    // Replay chat history
+    ...payload.chatHistory.map(msg => ({
+      role: msg.role,
+      parts: [
+        { text: msg.text },
+        ...(msg.attachments?.map(att => ({
+          inlineData: {
+            mimeType: att.mimeType,
+            data: att.data
+          }
+        })) || [])
+      ]
+    })),
+    // Newest message
+    {
+      role: 'user',
+      parts: [
+        { text: payload.prompt },
+        ...(payload.newAttachments?.map(att => ({
+          inlineData: {
+             mimeType: att.mimeType,
+             data: att.data
+          }
+        })) || [])
+      ]
+    }
+  ];
+
+  const config: any = {
+    systemInstruction: payload.systemInstruction + "\n\nYou are now in a follow-up chat mode. Answer the user's specific questions about the generated analysis. Be helpful, concise, and reference the analysis.",
+  };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_ID,
+      contents: contents as any,
+      config: config
+    });
+
+    return response.text || "I couldn't generate a response.";
+  } catch (error) {
+    console.error("Gemini Chat Error:", error);
+    throw new Error(`Gemini Chat Error: ${(error as Error).message}`);
   }
 };
