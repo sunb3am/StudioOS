@@ -47,11 +47,18 @@
       .prose li { margin-bottom: 0.25em; }
       .prose strong { font-weight: 600; color: #111827; }
       .prose blockquote { border-left: 4px solid #e5e7eb; padding-left: 1em; font-style: italic; color: #6b7280; margin-bottom: 1em; }
+      
+      /* Table Styles */
+      .prose table { width: 100%; border-collapse: collapse; margin-bottom: 1.5em; font-size: 0.9em; }
+      .prose th { background-color: #f3f4f6; font-weight: 600; text-align: left; padding: 0.75rem; border: 1px solid #e5e7eb; }
+      .prose td { padding: 0.75rem; border: 1px solid #e5e7eb; }
+      .prose tr:nth-child(even) { background-color: #f9fafb; }
     </style>
   <script type="importmap">
 {
   "imports": {
     "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0",
+    "remark-gfm": "https://aistudiocdn.com/remark-gfm@^4.0.0",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",

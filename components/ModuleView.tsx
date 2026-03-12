@@ -1,6 +1,6 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ModuleDefinition, ModuleData, ModuleStatus, ChatMessage } from '../types';
 import { Play, RefreshCw, ChevronRight, AlertTriangle, ExternalLink, Globe, Sparkles, Square, History, Clock, AlertOctagon, Send, Paperclip, MessageSquare, User, Bot } from 'lucide-react';
 
@@ -24,6 +24,8 @@ export const ModuleView: React.FC<ModuleViewProps> = ({ definition, data, projec
   const bottomRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const manualInputRef = useRef<HTMLTextAreaElement>(null);
 
   const displayOutput = selectedVersionIndex === -1 ? data.output : data.versions[selectedVersionIndex]?.output;
   const displaySources = selectedVersionIndex === -1 ? data.sources : data.versions[selectedVersionIndex]?.sources;
@@ -48,6 +50,22 @@ export const ModuleView: React.FC<ModuleViewProps> = ({ definition, data, projec
     }
   }, [displayChat, isChatting]);
 
+  // Auto-resize textarea logic
+  const adjustTextareaHeight = (ref: React.RefObject<HTMLTextAreaElement>) => {
+    if (ref.current) {
+      ref.current.style.height = 'auto';
+      ref.current.style.height = `${ref.current.scrollHeight}px`;
+    }
+  };
+
+  useEffect(() => {
+    adjustTextareaHeight(chatInputRef);
+  }, [chatInput]);
+
+  useEffect(() => {
+    adjustTextareaHeight(manualInputRef);
+  }, [manualInput]);
+
   const handleRun = () => {
     setSelectedVersionIndex(-1);
     onRun(definition.isManualInput ? manualInput : undefined);
@@ -61,10 +79,19 @@ export const ModuleView: React.FC<ModuleViewProps> = ({ definition, data, projec
       await onChat(chatInput, chatFiles);
       setChatInput('');
       setChatFiles([]);
+      // Reset height
+      if (chatInputRef.current) chatInputRef.current.style.height = 'auto';
     } catch (e) {
       console.error(e);
     } finally {
       setIsChatting(false);
+    }
+  };
+
+  const handleChatKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendChat();
     }
   };
 
@@ -166,21 +193,24 @@ export const ModuleView: React.FC<ModuleViewProps> = ({ definition, data, projec
           <label className="block text-sm font-medium text-studio-900 mb-2">
             Focus Theme / Problem Area
           </label>
-          <div className="flex space-x-4">
-            <input
-              type="text"
+          <div className="flex flex-col space-y-3">
+            <textarea
+              ref={manualInputRef}
               value={manualInput}
               onChange={(e) => setManualInput(e.target.value)}
               placeholder="e.g. AI-driven cognitive tutors for frontline healthcare workers"
-              className="flex-1 shadow-sm focus:ring-studio-500 focus:border-studio-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+              rows={1}
+              className="w-full shadow-sm focus:ring-studio-500 focus:border-studio-500 block border-gray-300 rounded-md p-3 border bg-white text-gray-900 resize-none overflow-hidden min-h-[46px]"
             />
-            <button
-              onClick={handleRun}
-              disabled={!manualInput.trim()}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-studio-600 hover:bg-studio-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Start Research <ChevronRight className="ml-2 w-4 h-4" />
-            </button>
+            <div className="flex justify-end">
+              <button
+                onClick={handleRun}
+                disabled={!manualInput.trim()}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-studio-600 hover:bg-studio-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Start Research <ChevronRight className="ml-2 w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -233,7 +263,7 @@ export const ModuleView: React.FC<ModuleViewProps> = ({ definition, data, projec
                   </div>
               )}
               <div className="prose prose-studio max-w-none mb-12">
-                <ReactMarkdown>{displayOutput}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayOutput}</ReactMarkdown>
               </div>
 
               {/* Sources/Citations Footer */}
@@ -297,7 +327,7 @@ export const ModuleView: React.FC<ModuleViewProps> = ({ definition, data, projec
                                </div>
                             )}
                             <div className={`text-sm ${msg.role === 'user' ? 'text-white' : 'prose prose-sm max-w-none'}`}>
-                              {msg.role === 'user' ? msg.text : <ReactMarkdown>{msg.text}</ReactMarkdown>}
+                              {msg.role === 'user' ? msg.text : <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>}
                             </div>
                             <div className={`text-[10px] mt-1 opacity-70 ${msg.role === 'user' ? 'text-studio-100' : 'text-gray-400'}`}>
                               {new Date(msg.timestamp).toLocaleTimeString()}
@@ -334,10 +364,10 @@ export const ModuleView: React.FC<ModuleViewProps> = ({ definition, data, projec
                         ))}
                       </div>
                     )}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-end">
                       <button 
                         onClick={() => fileInputRef.current?.click()}
-                        className="p-3 text-gray-400 hover:text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="p-3 text-gray-400 hover:text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors h-[50px]"
                         title="Upload file"
                       >
                         <Paperclip className="w-5 h-5" />
@@ -351,19 +381,20 @@ export const ModuleView: React.FC<ModuleViewProps> = ({ definition, data, projec
                         accept="image/*,application/pdf,.txt"
                       />
                       <div className="flex-1 relative">
-                        <input
-                          type="text"
+                        <textarea
+                          ref={chatInputRef}
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendChat()}
+                          onKeyDown={handleChatKeyDown}
                           placeholder="Ask a follow-up question..."
-                          className="w-full border border-gray-300 rounded-lg pl-4 pr-12 py-3 focus:ring-studio-500 focus:border-studio-500 shadow-sm"
+                          rows={1}
+                          className="w-full border border-gray-300 rounded-lg pl-4 pr-12 py-3 focus:ring-studio-500 focus:border-studio-500 shadow-sm bg-white text-gray-900 resize-none overflow-hidden min-h-[50px]"
                           disabled={isChatting}
                         />
                         <button
                           onClick={handleSendChat}
                           disabled={(!chatInput.trim() && chatFiles.length === 0) || isChatting}
-                          className="absolute right-2 top-2 p-1.5 bg-studio-600 text-white rounded-md hover:bg-studio-700 disabled:opacity-50 transition-colors"
+                          className="absolute right-2 bottom-2 p-1.5 bg-studio-600 text-white rounded-md hover:bg-studio-700 disabled:opacity-50 transition-colors mb-1"
                         >
                           <Send className="w-4 h-4" />
                         </button>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { ModuleView } from './components/ModuleView';
@@ -457,6 +456,7 @@ const App: React.FC = () => {
         <meta charset="UTF-8">
         <title>${project.name || APP_NAME} - Report</title>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
         <style>
           @media print {
             @page { margin: 2cm; }
@@ -532,6 +532,12 @@ const App: React.FC = () => {
           li { margin-bottom: 0.5em; }
           blockquote { border-left: 4px solid #059669; padding-left: 15px; color: #4b5563; font-style: italic; margin: 20px 0; background: #f9fafb; padding: 15px; }
           
+          /* Table Styles for PDF */
+          table { width: 100%; border-collapse: collapse; margin-bottom: 1.5em; font-size: 0.9em; }
+          th { background-color: #f3f4f6; font-weight: 600; text-align: left; padding: 8px; border: 1px solid #e5e7eb; }
+          td { padding: 8px; border: 1px solid #e5e7eb; }
+          tr:nth-child(even) { background-color: #f9fafb; }
+
           .module-section { margin-bottom: 60px; page-break-after: always; }
           .source-box { background: #f3f4f6; border-radius: 8px; padding: 15px; margin-top: 30px; font-size: 12px; }
           .source-link { color: #2563eb; text-decoration: none; display: block; margin-bottom: 4px; }
@@ -589,20 +595,15 @@ const App: React.FC = () => {
 
     completedModules.forEach(mod => {
       const data = project.modules[mod.id];
-      let formattedOutput = data.output || '';
-      
-      // Basic Markdown to HTML conversion for PDF
-      formattedOutput = formattedOutput
-        .replace(/^# (.*$)/gim, '<h3>$1</h3>')
-        .replace(/^## (.*$)/gim, '<h4>$1</h4>')
-        .replace(/^### (.*$)/gim, '<h5>$1</h5>')
-        .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-        .replace(/\n/gim, '<br/>');
 
+      // Instead of simple regex replace, we prepare containers that script will fill with marked.js output
       htmlContent += `
         <div class="module-section">
           <h1>${mod.title}</h1>
-          <div class="content">${formattedOutput}</div>
+          <div id="content-${mod.id}" class="content"></div>
+          <script>
+            document.getElementById('content-${mod.id}').innerHTML = marked.parse(${JSON.stringify(data.output || '')});
+          </script>
           
           ${data.sources && data.sources.length > 0 ? `
             <div class="source-box">
@@ -633,7 +634,10 @@ const App: React.FC = () => {
           <span>${new Date().toLocaleDateString()}</span>
         </div>
         <script>
-          window.onload = function() { window.print(); }
+          // Small delay to ensure marked finishes parsing before print dialog
+          setTimeout(() => {
+             window.print();
+          }, 500);
         </script>
       </body>
       </html>
