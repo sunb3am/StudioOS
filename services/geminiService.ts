@@ -1,11 +1,11 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { GeneratePayload, GroundingSource, ChatPayload, ChatMessage } from '../types';
-
-const MODEL_ID = 'gemini-3-pro-preview';
+import { GeneratePayload, GroundingSource, ChatPayload } from '../types';
+import { MODELS } from '../constants';
 
 export const generateGeminiResponse = async (
   apiKey: string,
+  model: string,
   payload: GeneratePayload
 ): Promise<{ text: string; sources: GroundingSource[] }> => {
   if (!apiKey) throw new Error("API Key is missing");
@@ -19,7 +19,7 @@ export const generateGeminiResponse = async (
 
   const config: any = {
     systemInstruction: payload.systemInstruction,
-    temperature: 0.7,
+    // Gemini 3 models perform best at the default temperature (1.0)
   };
 
   if (tools.length > 0) {
@@ -27,12 +27,13 @@ export const generateGeminiResponse = async (
   }
 
   if (payload.useThinking) {
-    config.thinkingConfig = { thinkingBudget: 8192 }; 
+    // Use thinkingLevel for Gemini 3 models (replaces deprecated thinkingBudget)
+    config.thinkingConfig = { thinkingLevel: 'high' };
   }
 
   try {
     const response = await ai.models.generateContent({
-      model: MODEL_ID,
+      model: model || MODELS.FLASH,
       contents: [
         {
           role: 'user',
@@ -69,19 +70,18 @@ export const generateGeminiResponse = async (
 
 export const generateChatResponse = async (
   apiKey: string,
+  model: string,
   payload: ChatPayload
 ): Promise<string> => {
   if (!apiKey) throw new Error("API Key is missing");
 
   const ai = new GoogleGenAI({ apiKey });
 
-  // We include the module context, the main output, and the chat history
   const contents = [
     {
       role: 'user',
       parts: [{ text: `BACKGROUND CONTEXT:\n${payload.history}\n\nCURRENT MODULE OUTPUT:\n${payload.currentOutput}` }]
     },
-    // Replay chat history
     ...payload.chatHistory.map(msg => ({
       role: msg.role,
       parts: [
@@ -94,7 +94,6 @@ export const generateChatResponse = async (
         })) || [])
       ]
     })),
-    // Newest message
     {
       role: 'user',
       parts: [
@@ -115,7 +114,7 @@ export const generateChatResponse = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: MODEL_ID,
+      model: model || MODELS.FLASH,
       contents: contents as any,
       config: config
     });

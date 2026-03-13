@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Zap, Layers, MessageSquare, FileText } from 'lucide-react';
+import { X, Zap, Layers, MessageSquare, FileText, Search } from 'lucide-react';
 
 interface WelcomeModalProps {
   onClose: () => void;
@@ -8,76 +8,93 @@ interface WelcomeModalProps {
 
 export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onClose }) => {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-        <div className="bg-studio-50 p-8 border-b border-studio-100 text-center relative">
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-            <X className="w-6 h-6" />
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+        {/* Header */}
+        <div className="relative bg-gradient-to-br from-studio-600 to-studio-800 px-8 py-8 text-white text-center">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors rounded-lg p-1.5 hover:bg-white/10"
+          >
+            <X className="w-5 h-5" />
           </button>
-          <div className="w-16 h-16 bg-studio-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <Zap className="text-white w-8 h-8" />
+          <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg backdrop-blur-sm">
+            <Zap className="text-white w-7 h-7" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900">Welcome to StudioOS v1</h2>
-          <p className="text-studio-700 mt-2">Your AI-Powered Venture Research Architect</p>
+          <h2 className="text-2xl font-bold">Welcome to VentureForge</h2>
+          <p className="text-studio-200 mt-1.5 text-sm">Your AI-powered venture research engine</p>
         </div>
         
-        <div className="p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex items-start space-x-4">
-              <div className="bg-blue-50 p-2 rounded-lg shrink-0">
-                <Layers className="w-5 h-5 text-blue-600" />
+        {/* Features */}
+        <div className="p-7">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="flex items-start gap-4">
+              <div className="bg-blue-50 p-2.5 rounded-xl shrink-0">
+                <Layers className="w-4 h-4 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Automated Pipeline</h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  14 interconnected modules that build upon each other, from trend detection to full pitch decks.
+                <h3 className="font-semibold text-gray-900 text-sm">14-Step Research Pipeline</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Interconnected modules that build on each other — from trend detection through to pitch deck outlines.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start space-x-4">
-              <div className="bg-purple-50 p-2 rounded-lg shrink-0">
-                <Zap className="w-5 h-5 text-purple-600" />
+            <div className="flex items-start gap-4">
+              <div className="bg-studio-50 p-2.5 rounded-xl shrink-0">
+                <Zap className="w-4 h-4 text-studio-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Continuous Mode</h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  Enabled by default. The system automatically triggers the next step as soon as one finishes.
+                <h3 className="font-semibold text-gray-900 text-sm">Continuous Mode</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Enabled by default. The pipeline runs automatically from start to finish. Disable it to step through manually.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start space-x-4">
-              <div className="bg-amber-50 p-2 rounded-lg shrink-0">
-                <MessageSquare className="w-5 h-5 text-amber-600" />
+            <div className="flex items-start gap-4">
+              <div className="bg-purple-50 p-2.5 rounded-xl shrink-0">
+                <Search className="w-4 h-4 text-purple-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Deep Dive Chat</h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  Don't just read the report—chat with it. Upload files and ask follow-up questions for every module.
+                <h3 className="font-semibold text-gray-900 text-sm">Live Web Research</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Key modules use real-time Google Search grounding to validate trends, find competitors, and cite sources.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start space-x-4">
-              <div className="bg-green-50 p-2 rounded-lg shrink-0">
-                <FileText className="w-5 h-5 text-green-600" />
+            <div className="flex items-start gap-4">
+              <div className="bg-amber-50 p-2.5 rounded-xl shrink-0">
+                <MessageSquare className="w-4 h-4 text-amber-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Professional Export</h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  Generate comprehensive, branded PDF reports including your chat history and citations.
+                <h3 className="font-semibold text-gray-900 text-sm">Deep Dive Chat</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Chat with each module's output. Upload files and ask follow-up questions to go deeper on any section.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div className="bg-green-50 p-2.5 rounded-xl shrink-0">
+                <FileText className="w-4 h-4 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm">Professional PDF Export</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Export a full-length, formatted report including all analysis, citations, and chat history.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+          <div className="mt-6 pt-5 border-t border-gray-100 flex justify-end">
             <button
               onClick={onClose}
-              className="px-6 py-2.5 bg-studio-600 text-white font-medium rounded-lg hover:bg-studio-700 transition-colors shadow-md"
+              className="px-6 py-2.5 bg-studio-600 text-white text-sm font-semibold rounded-xl hover:bg-studio-700 transition-colors shadow-sm"
             >
-              Get Started
+              Start Researching
             </button>
           </div>
         </div>

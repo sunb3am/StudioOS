@@ -1,9 +1,21 @@
 
 import { ModuleDefinition } from './types';
 
-export const APP_NAME = "StudioOS v1";
+export const APP_NAME = "VentureForge";
+export const APP_VERSION = "v1";
 
-// The specific "GoodFutures" persona instructions from the PDF
+export const MODELS = {
+  FLASH: 'gemini-3-flash-preview',
+  PRO: 'gemini-3.1-pro-preview',
+  FLASH_LITE: 'gemini-3.1-flash-lite-preview',
+};
+
+export const MODEL_OPTIONS = [
+  { id: MODELS.FLASH, label: 'Gemini 3 Flash', description: 'Fast & capable — great for most tasks' },
+  { id: MODELS.PRO, label: 'Gemini 3.1 Pro', description: 'Most powerful — best for deep analysis' },
+  { id: MODELS.FLASH_LITE, label: 'Gemini 3.1 Flash Lite', description: 'Fastest & most economical' },
+];
+
 export const CORE_SYSTEM_INSTRUCTION = `
 You are an expert entrepreneur, product strategist, and venture analyst. Your purpose is to provide insightful, well-reasoned analysis based on the specific function of this module. You think critically, identify underlying assumptions, and communicate with clarity and intellectual honesty.
 
@@ -70,8 +82,8 @@ export const MODULES: ModuleDefinition[] = [
     description: 'Generate structured, non-obvious venture concepts with unfair advantages.',
     inputs: ['mod-4'],
     systemPromptKey: 'PROMPT_MOD_5',
-    useThinking: true, // Creativity needs reasoning
-    useGrounding: false // Pure ideation based on previous research
+    useThinking: true,
+    useGrounding: false
   },
   {
     id: 'mod-6',
@@ -80,12 +92,12 @@ export const MODULES: ModuleDefinition[] = [
     inputs: ['mod-5'],
     systemPromptKey: 'PROMPT_MOD_6',
     useThinking: true,
-    useGrounding: true // Heavy search required
+    useGrounding: true
   },
   {
     id: 'mod-7',
-    title: '7. Problem-Solution Fit & Rationale',
-    description: 'Construct a persuasive Investment Rationale (Why now? Why us?).',
+    title: '7. Venture Conviction & Investment Thesis',
+    description: 'Synthesize research into a high-conviction investment thesis: why this, why now, why win.',
     inputs: ['mod-6'],
     systemPromptKey: 'PROMPT_MOD_7',
     useThinking: true,
@@ -125,7 +137,7 @@ export const MODULES: ModuleDefinition[] = [
     inputs: ['mod-6', 'mod-9'],
     systemPromptKey: 'PROMPT_MOD_11',
     useThinking: true,
-    useGrounding: true // Benchmark pricing
+    useGrounding: true
   },
   {
     id: 'mod-12',
@@ -134,7 +146,7 @@ export const MODULES: ModuleDefinition[] = [
     inputs: ['mod-11'],
     systemPromptKey: 'PROMPT_MOD_12',
     useThinking: true,
-    useGrounding: true // Market data
+    useGrounding: true
   },
   {
     id: 'mod-13',
@@ -156,7 +168,6 @@ export const MODULES: ModuleDefinition[] = [
   }
 ];
 
-// Extracted text from the provided PDFs for high-fidelity prompting
 export const PROMPTS: Record<string, string> = {
   PROMPT_MOD_1: `
   Primary Objective: To identify and articulate non-obvious, high-potential problem statements from the noise of public discourse, grounded in credible, emerging trends.
@@ -237,7 +248,7 @@ export const PROMPTS: Record<string, string> = {
   Process:
   1. Deconstruction: Re-frame the Job-to-be-Done.
   2. Structured Ideation: Use lenses like Analogy Thinking, Tech Application, Business Model Innovation, "10x" Inversion.
-  3. Selection: Score against Novelty, Thesis Alignment, Right to Win.
+  3. Selection: Score against Novelty, Market Size, Right to Win.
   
   Deliverable: A "Venture Concept Memo" presenting the top 3 distinct concepts. For each: Concept Name & Core Thesis, The "Unfair Advantage", Key Differentiators, High-Level Features.
   `,
@@ -260,15 +271,22 @@ export const PROMPTS: Record<string, string> = {
   Deliverable: "Comprehensive Market & Competitive Intelligence Report" with: Ecosystem Map, Key Player Deep Dives, Lessons from the Graveyard, Strategic Opportunity & Barriers to Entry.
   `,
   PROMPT_MOD_7: `
-  Primary Objective: Construct a persuasive "Investment Rationale" (Why this? Why us? Why now?).
+  Primary Objective: Synthesize all prior research into a high-conviction "Venture Investment Thesis" that answers three fundamental questions: Is this worth building? Why now? Why would this specific venture win?
   
-  Strategic Mindset: Think like a founding CEO writing the internal memo to convince key hires/investors. Build conviction.
+  Strategic Mindset: Think like a founding CEO writing an internal conviction memo to persuade top-tier co-founders and seed investors. You are not summarizing — you are building an argument. Every claim must connect back to evidence gathered in earlier modules.
   
   Process:
-  1. Narrative Architecture: The Inevitable Future -> The Flawed Present -> The Inflection Point -> Our Solution as the Bridge.
-  2. Argument Fortification: Connect "Unfair Advantage" to tangible assets. Neutralize the Bear Case.
+  1. Opportunity Sizing Confirmation: Distill the most compelling market size and timing signals from prior research. Articulate why the window is open NOW (technology inflection, regulatory shift, behavioral change, etc.).
+  2. The Unfair Advantage: Identify what structural advantage the proposed venture has. This could be a unique insight, distribution moat, proprietary data, network effect, or founder/team edge.
+  3. Bear Case Neutralization: Identify the 2-3 strongest objections a skeptical investor would raise, then construct evidence-backed counterarguments.
+  4. Conviction Score: Provide an honest, qualitative conviction assessment (Low / Medium / High) with a brief rationale. This forces intellectual honesty — not every idea is a strong venture.
   
-  Deliverable: "Investment Rationale & Strategic Narrative" (2-3 pages). Use headings: The Flawed Present, The Inflection Point, Our Unfair Advantage.
+  Deliverable: "Venture Investment Thesis" (2-3 pages). Use these headings:
+  - The Inevitable Shift (why the world is changing in a way that creates this opening)
+  - The Structural Gap (what existing solutions fundamentally cannot do)
+  - The Winning Angle (what unique position makes this venture defensible)
+  - The Bear Case & Response
+  - Conviction Assessment
   `,
   PROMPT_MOD_8: `
   Primary Objective: Translate concept into a disciplined "Product Feature Outline" for an MVP.

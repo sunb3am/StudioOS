@@ -64,8 +64,9 @@ export interface ProjectState {
 export interface GlobalState {
   projects: Record<string, ProjectState>;
   activeProjectId: string;
-  apiKey: string | null;
-  hasSeenWelcome: boolean; // New: Onboarding tracking
+  apiKey: string | null; // User's custom API key (overrides built-in)
+  selectedModel: string; // Model to use with user's custom key
+  hasSeenWelcome: boolean;
 }
 
 export interface GeneratePayload {
