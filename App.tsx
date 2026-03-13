@@ -757,7 +757,7 @@ const App: React.FC = () => {
       {/* API Key & Model Settings Modal */}
       {showApiKeyModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-visible">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
               <div className="flex items-center gap-3">
@@ -844,7 +844,7 @@ const App: React.FC = () => {
                     <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${modelDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {modelDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
+                    <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-72 overflow-y-auto">
                       {MODEL_OPTIONS.map(opt => (
                         <button
                           key={opt.id}
