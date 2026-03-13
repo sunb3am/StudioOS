@@ -66,7 +66,7 @@ Get a free API key at [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/ventureforge.git
+git clone https://github.com/sunb3am/StudioOS.git ventureforge
 cd ventureforge
 
 # Install dependencies
@@ -97,26 +97,32 @@ npm start       # Serves the built app (uses `serve`)
 
 ## Deploying to Railway
 
-### Option 1: Deploy via Railway CLI
+### Option 1: Deploy via Railway Dashboard (Recommended)
+
+1. Go to [railway.app/new](https://railway.app/new)
+2. Click **"Deploy from GitHub repo"** and select `sunb3am/StudioOS`
+3. In the project settings, add the environment variable:
+   ```
+   GEMINI_API_KEY = AIzaSyB_X6Kyz35jybES5qB2waGok1MOqdDR1Ko
+   ```
+   (or your own key)
+4. Railway auto-detects `railway.toml` and runs `npm run build` then `npm start`
+5. Your app will be live at a `*.up.railway.app` URL
+
+### Option 2: Deploy via Railway CLI
 
 ```bash
-# Install Railway CLI
+# Install Railway CLI and login
 npm install -g @railway/cli
-
-# Login and deploy
 railway login
-railway init
-railway up
+
+# From the project directory
+cd ventureforge
+railway init       # Creates a new Railway project
+railway up         # Deploys
 ```
 
-Set the `GEMINI_API_KEY` environment variable in your Railway project settings. This key gets baked into the build and used as the built-in shared key.
-
-### Option 2: Deploy via Railway Dashboard
-
-1. Connect your GitHub repo at [railway.app](https://railway.app)
-2. Create a new project and select your repo
-3. Add the environment variable: `GEMINI_API_KEY = <your_key>`
-4. Railway auto-detects the `railway.toml` config and deploys
+Then set `GEMINI_API_KEY` in the Railway dashboard under your project's Variables.
 
 The `railway.toml` in this repo handles the build (`npm run build`) and start (`npm start`) commands automatically.
 
