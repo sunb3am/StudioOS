@@ -95,41 +95,6 @@ npm start       # Serves the built app (uses `serve`)
 
 ---
 
-## Deploying to Railway
-
-### Option 1: Deploy via Railway Dashboard (Recommended)
-
-1. Go to [railway.app/new](https://railway.app/new)
-2. Click **"Deploy from GitHub repo"** and select `sunb3am/StudioOS`
-3. In the project settings, add the environment variable:
-   ```
-   GEMINI_API_KEY = AIzaSyB_X6Kyz35jybES5qB2waGok1MOqdDR1Ko
-   ```
-   (or your own key)
-4. Railway auto-detects `railway.toml` and runs `npm run build` then `npm start`
-5. Your app will be live at a `*.up.railway.app` URL
-
-### Option 2: Deploy via Railway CLI
-
-```bash
-# Install Railway CLI and login
-npm install -g @railway/cli
-railway login
-
-# From the project directory
-cd ventureforge
-railway init       # Creates a new Railway project
-railway up         # Deploys
-```
-
-Then set `GEMINI_API_KEY` in the Railway dashboard under your project's Variables.
-
-The `railway.toml` in this repo handles the build (`npm run build`) and start (`npm start`) commands automatically.
-
-> **Note on key security:** The `GEMINI_API_KEY` is injected at build time by Vite and baked into the static JS bundle. This is the standard approach for client-side apps without a backend. For a production deployment with sensitive keys, consider adding a lightweight API proxy. For the included shared key (which is a free-tier burner key), this is acceptable.
-
----
-
 ## Tech Stack
 
 - **Framework:** React 19 + TypeScript
