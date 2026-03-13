@@ -202,6 +202,10 @@ const App: React.FC = () => {
     setGlobalState(prev => ({ ...prev, activeProjectId: id }));
   };
 
+  const handleRenameProject = (id: string, name: string) => {
+    updateProjectState(id, (p) => ({ ...p, name, lastModified: Date.now() }));
+  };
+
   const handleSelectModule = (id: string) => {
     updateProjectState(globalState.activeProjectId, (p) => ({ ...p, currentModuleId: id }));
   };
@@ -321,7 +325,7 @@ const App: React.FC = () => {
         chatHistory: modData.chatHistory || [],
         newAttachments: attachments,
         useThinking: false,
-        useGrounding: false
+        useGrounding: true
       });
 
       const botMsg: ChatMessage = {
@@ -390,7 +394,10 @@ const App: React.FC = () => {
 
       const updatedProj = { ...prevProj };
       if (manualInput) updatedProj.theme = manualInput;
-      if (manualInput && prevProj.name.startsWith("Venture Analysis")) updatedProj.name = manualInput.substring(0, 30) + "...";
+      if (manualInput && (prevProj.name === 'New Venture Concept' || prevProj.name.startsWith("Venture Analysis"))) {
+        const trimmed = manualInput.length > 50 ? manualInput.substring(0, 50) + '...' : manualInput;
+        updatedProj.name = trimmed;
+      }
       
       updatedProj.lastModified = Date.now();
       updatedProj.modules[moduleId] = {
@@ -679,6 +686,7 @@ const App: React.FC = () => {
         onCreateProject={handleCreateProject}
         onSwitchProject={handleSwitchProject}
         onDeleteProject={handleDeleteProject}
+        onRenameProject={handleRenameProject}
       />
       
       <main className="flex-1 p-6 overflow-hidden flex flex-col min-w-0">
@@ -836,7 +844,7 @@ const App: React.FC = () => {
                     <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${modelDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {modelDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
                       {MODEL_OPTIONS.map(opt => (
                         <button
                           key={opt.id}

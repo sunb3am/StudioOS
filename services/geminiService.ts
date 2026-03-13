@@ -117,8 +117,12 @@ export const generateChatResponse = async (
   const config: any = {
     systemInstruction:
       payload.systemInstruction +
-      "\n\nYou are now in follow-up chat mode. Answer the user's specific questions about the generated analysis. Be helpful, concise, and reference the analysis.",
+      "\n\nYou are now in follow-up chat mode. Answer the user's specific questions about the generated analysis. Be helpful, concise, and reference the analysis. You have access to Google Search. If the user asks about something not covered in the analysis, or asks you to verify, look up, or find new information, USE Google Search to find real, current answers. Do not say you cannot search the web.",
   };
+
+  if (payload.useGrounding) {
+    config.tools = [{ googleSearch: {} }];
+  }
 
   try {
     const response = await ai.models.generateContent({
