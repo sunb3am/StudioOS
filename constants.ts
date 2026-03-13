@@ -5,15 +5,42 @@ export const APP_NAME = "VentureForge";
 export const APP_VERSION = "v1";
 
 export const MODELS = {
-  FLASH: 'gemini-3-flash-preview',
-  PRO: 'gemini-3.1-pro-preview',
-  FLASH_LITE: 'gemini-3.1-flash-lite-preview',
+  // Default — stable, free tier includes tokens + Google Search grounding (500 req/day)
+  FLASH: 'gemini-2.5-flash',
+  FLASH_LITE: 'gemini-2.5-flash-lite',
+  // Gemini 3 series — grounding NOT available on free tier; use a paid-tier key
+  GEMINI3_FLASH: 'gemini-3-flash-preview',
+  GEMINI3_PRO: 'gemini-3.1-pro-preview',
 };
 
+// Whether a model ID belongs to the Gemini 3 family (uses thinkingLevel config)
+export const isGemini3Model = (model: string) => model.startsWith('gemini-3');
+
 export const MODEL_OPTIONS = [
-  { id: MODELS.FLASH, label: 'Gemini 3 Flash', description: 'Fast & capable — great for most tasks' },
-  { id: MODELS.PRO, label: 'Gemini 3.1 Pro', description: 'Most powerful — best for deep analysis' },
-  { id: MODELS.FLASH_LITE, label: 'Gemini 3.1 Flash Lite', description: 'Fastest & most economical' },
+  {
+    id: MODELS.FLASH,
+    label: 'Gemini 2.5 Flash',
+    description: 'Best for free tier — full grounding support, fast & capable',
+    requiresPaid: false,
+  },
+  {
+    id: MODELS.FLASH_LITE,
+    label: 'Gemini 2.5 Flash-Lite',
+    description: 'Free tier — lightest & most economical option',
+    requiresPaid: false,
+  },
+  {
+    id: MODELS.GEMINI3_FLASH,
+    label: 'Gemini 3 Flash',
+    description: 'Latest generation — requires paid-tier key for grounding',
+    requiresPaid: true,
+  },
+  {
+    id: MODELS.GEMINI3_PRO,
+    label: 'Gemini 3.1 Pro',
+    description: 'Most powerful — requires paid-tier key',
+    requiresPaid: true,
+  },
 ];
 
 export const CORE_SYSTEM_INSTRUCTION = `

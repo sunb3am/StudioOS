@@ -40,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const modelLabel = MODEL_OPTIONS.find(m => m.id === effectiveModel)?.label || 'Gemini 3 Flash';
+  const modelLabel = MODEL_OPTIONS.find(m => m.id === effectiveModel)?.label || 'Gemini 2.5 Flash';
 
   return (
     <div className="w-72 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0 overflow-hidden shrink-0">

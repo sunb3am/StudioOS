@@ -1,7 +1,21 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { GeneratePayload, GroundingSource, ChatPayload } from '../types';
-import { MODELS } from '../constants';
+import { MODELS, isGemini3Model } from '../constants';
+
+/**
+ * Builds the correct thinkingConfig for the given model.
+ * - Gemini 2.5 series: uses `thinkingBudget` (token count)
+ * - Gemini 3 series:   uses `thinkingLevel` (string enum)
+ */
+const buildThinkingConfig = (model: string, useThinking: boolean): object | undefined => {
+  if (!useThinking) return undefined;
+  if (isGemini3Model(model)) {
+    return { thinkingLevel: 'high' };
+  }
+  // Gemini 2.5 Flash / Flash-Lite: thinkingBudget in tokens (0 = off, -1 = auto)
+  return { thinkingBudget: 8192 };
+};
 
 export const generateGeminiResponse = async (
   apiKey: string,
@@ -11,6 +25,7 @@ export const generateGeminiResponse = async (
   if (!apiKey) throw new Error("API Key is missing");
 
   const ai = new GoogleGenAI({ apiKey });
+  const activeModel = model || MODELS.FLASH;
 
   const tools: any[] = [];
   if (payload.useGrounding) {
@@ -19,21 +34,20 @@ export const generateGeminiResponse = async (
 
   const config: any = {
     systemInstruction: payload.systemInstruction,
-    // Gemini 3 models perform best at the default temperature (1.0)
   };
 
   if (tools.length > 0) {
     config.tools = tools;
   }
 
-  if (payload.useThinking) {
-    // Use thinkingLevel for Gemini 3 models (replaces deprecated thinkingBudget)
-    config.thinkingConfig = { thinkingLevel: 'high' };
+  const thinkingConfig = buildThinkingConfig(activeModel, !!payload.useThinking);
+  if (thinkingConfig) {
+    config.thinkingConfig = thinkingConfig;
   }
 
   try {
     const response = await ai.models.generateContent({
-      model: model || MODELS.FLASH,
+      model: activeModel,
       contents: [
         {
           role: 'user',
@@ -43,20 +57,17 @@ export const generateGeminiResponse = async (
           ]
         }
       ],
-      config: config
+      config,
     });
 
     const text = response.text || "No response generated.";
-    
+
     const sources: GroundingSource[] = [];
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {
       chunks.forEach((chunk: any) => {
         if (chunk.web) {
-          sources.push({
-            uri: chunk.web.uri,
-            title: chunk.web.title
-          });
+          sources.push({ uri: chunk.web.uri, title: chunk.web.title });
         }
       });
     }
@@ -76,6 +87,7 @@ export const generateChatResponse = async (
   if (!apiKey) throw new Error("API Key is missing");
 
   const ai = new GoogleGenAI({ apiKey });
+  const activeModel = model || MODELS.FLASH;
 
   const contents = [
     {
@@ -87,10 +99,7 @@ export const generateChatResponse = async (
       parts: [
         { text: msg.text },
         ...(msg.attachments?.map(att => ({
-          inlineData: {
-            mimeType: att.mimeType,
-            data: att.data
-          }
+          inlineData: { mimeType: att.mimeType, data: att.data }
         })) || [])
       ]
     })),
@@ -99,24 +108,23 @@ export const generateChatResponse = async (
       parts: [
         { text: payload.prompt },
         ...(payload.newAttachments?.map(att => ({
-          inlineData: {
-             mimeType: att.mimeType,
-             data: att.data
-          }
+          inlineData: { mimeType: att.mimeType, data: att.data }
         })) || [])
       ]
     }
   ];
 
   const config: any = {
-    systemInstruction: payload.systemInstruction + "\n\nYou are now in a follow-up chat mode. Answer the user's specific questions about the generated analysis. Be helpful, concise, and reference the analysis.",
+    systemInstruction:
+      payload.systemInstruction +
+      "\n\nYou are now in follow-up chat mode. Answer the user's specific questions about the generated analysis. Be helpful, concise, and reference the analysis.",
   };
 
   try {
     const response = await ai.models.generateContent({
-      model: model || MODELS.FLASH,
+      model: activeModel,
       contents: contents as any,
-      config: config
+      config,
     });
 
     return response.text || "I couldn't generate a response.";

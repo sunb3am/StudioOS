@@ -776,7 +776,7 @@ const App: React.FC = () => {
                   <div>
                     <p className="text-sm font-medium text-studio-900">Built-in API key active</p>
                     <p className="text-xs text-studio-700 mt-0.5">
-                      VentureForge includes a shared key using <strong>Gemini 3 Flash</strong>. It may be rate-limited under heavy use. Add your own key below to access more powerful models and avoid limits.
+                      VentureForge includes a shared key using <strong>Gemini 2.5 Flash</strong>. It may be rate-limited under heavy use. Add your own key below for higher limits and access to Gemini 3 models.
                     </p>
                   </div>
                 </div>
@@ -846,7 +846,14 @@ const App: React.FC = () => {
                           }`}
                         >
                           <div>
-                            <div className="font-medium text-gray-800">{opt.label}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-800">{opt.label}</span>
+                              {opt.requiresPaid && (
+                                <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded">
+                                  Paid key
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-gray-500 mt-0.5">{opt.description}</div>
                           </div>
                           {globalState.selectedModel === opt.id && (
@@ -859,7 +866,7 @@ const App: React.FC = () => {
                 </div>
                 {isUsingBuiltinKey && (
                   <p className="text-xs text-gray-400 mt-1.5">
-                    The built-in key is locked to Gemini 3 Flash. Add your own key to switch models.
+                    The built-in key uses Gemini 2.5 Flash. Add your own key to switch models. Gemini 3 models require a paid-tier key to use grounding.
                   </p>
                 )}
               </div>
