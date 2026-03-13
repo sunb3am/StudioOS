@@ -1,8 +1,10 @@
 # VentureForge
 
-**An AI-powered, end-to-end venture research engine.** VentureForge runs a 14-step autonomous research pipeline — from trend detection and problem validation through to market analysis, product specs, financial modeling, and a pitch deck outline — powered by Google Gemini 3.
+**An AI-powered, end-to-end venture research engine.** [VentureForge](https://vf.up.railway.app/) runs a 14-step autonomous research pipeline — from trend detection and problem validation through to market analysis, product specs, financial modeling, and a pitch deck outline — powered by Google Gemini 3.1.
 
 ![VentureForge UI](docs/ui_screenshot.png)
+
+![VentureForge UI](docs/ui_screenshot_2.png)
 
 ---
 
@@ -95,33 +97,12 @@ npm start       # Serves the built app (uses `serve`)
 
 ---
 
-## Deploying to Railway
-
-### Option 1: Railway Dashboard (Recommended)
-
-1. Go to [railway.app/new](https://railway.app/new)
-2. Click **Deploy from GitHub repo** and select `sunb3am/StudioOS`
-3. In the **Variables** tab, add: `GEMINI_API_KEY` = your key (from [Google AI Studio](https://aistudio.google.com/app/apikey))
-4. Railway auto-detects `railway.toml` and builds/serves automatically
-
-### Option 2: Railway CLI
-
-```bash
-npm install -g @railway/cli
-railway login
-railway init
-railway variables set GEMINI_API_KEY=<your_key>
-railway up
-```
-
----
-
 ## Tech Stack
 
 - **Framework:** React 19 + TypeScript
 - **Bundler:** Vite 6
 - **AI:** Google Gemini API (`@google/genai`)
-  - Gemini 3 Flash (default), Gemini 3.1 Pro, Gemini 3.1 Flash Lite
+  - Gemini 2.5 Flash (default), Gemini 3.1 Pro, Gemini 3.1 Flash Lite
   - Thinking mode (deep reasoning) on key modules
   - Google Search grounding on research-heavy modules
 - **Styling:** Tailwind CSS (CDN config)
