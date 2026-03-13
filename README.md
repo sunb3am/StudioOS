@@ -95,6 +95,27 @@ npm start       # Serves the built app (uses `serve`)
 
 ---
 
+## Deploying to Railway
+
+### Option 1: Railway Dashboard (Recommended)
+
+1. Go to [railway.app/new](https://railway.app/new)
+2. Click **Deploy from GitHub repo** and select `sunb3am/StudioOS`
+3. In the **Variables** tab, add: `GEMINI_API_KEY` = your key (from [Google AI Studio](https://aistudio.google.com/app/apikey))
+4. Railway auto-detects `railway.toml` and builds/serves automatically
+
+### Option 2: Railway CLI
+
+```bash
+npm install -g @railway/cli
+railway login
+railway init
+railway variables set GEMINI_API_KEY=<your_key>
+railway up
+```
+
+---
+
 ## Tech Stack
 
 - **Framework:** React 19 + TypeScript
